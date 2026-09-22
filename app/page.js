@@ -7,6 +7,9 @@ import { SectionTitle, SummaryCard, BigStat, StatRow, Stat, Divider, fmtDelta } 
 export const dynamic = "force-dynamic";
 
 const MAINTENANCE_CALORIES = 2100;
+const REDZONE_START = "2026-09-22";
+const REDZONE_END = "2026-10-16";
+const VACATION_DATE = "2026-10-17";
 
 async function getAllDays() {
   const { data, error } = await supabase
@@ -141,6 +144,10 @@ export default async function HomePage() {
   const weekLabel = formatWeekLabel(activeWeek.start, activeWeek.end);
   const weeks = groupIntoWeeks(allDays);
 
+  const redzoneDays = allDays.filter((d) => d.log_date >= REDZONE_START && d.log_date <= REDZONE_END);
+  const redzone = aggregate(redzoneDays, { workoutDenom: redzoneDays.length, bingeDenom: redzoneDays.length });
+  const daysUntilVacation = Math.ceil((new Date(VACATION_DATE + "T00:00:00") - new Date()) / (24 * 60 * 60 * 1000));
+
   return (
     <div style={{ fontFamily: "var(--font-barlow)", minHeight: "100vh", background: T.bg, color: T.text }}>
       <div style={{ height: "5px", background: T.accent }} />
@@ -155,6 +162,35 @@ export default async function HomePage() {
       </div>
 
       <div style={{ padding: "0 16px" }}>
+        <SectionTitle>{"\uD83C\uDF34 HAWAII REDZONE"}</SectionTitle>
+        <SummaryCard style={{ border: `1px solid ${T.accent}` }}>
+          <div style={{ fontSize: "10.5px", color: T.muted, marginTop: "-4px", marginBottom: "4px" }}>
+            Sep 22 &ndash; Oct 16 &middot; {daysUntilVacation > 0 ? `${daysUntilVacation} days until takeoff` : "Trip is here!"}
+          </div>
+          <BigStat label="REDZONE AVERAGE SCORE" value={redzoneDays.length ? redzone.avgScore.toFixed(1) : "\u2014"} color={scoreColor(redzone.avgScore)} />
+
+          <StatRow>
+            <Stat label="CALORIES" value={fmtDelta(redzone.calVsTarget)} sub="vs. 1,700/day target" bad={redzone.calVsTarget > 0} />
+            <Stat label="VS MAINTENANCE" value={fmtDelta(redzone.calVsMaintenance)} sub={`vs. ${MAINTENANCE_CALORIES.toLocaleString()}/day`} bad={redzone.calVsMaintenance > 0} />
+            <Stat label="CAL BURNED" value={redzone.calBurned.toLocaleString()} sub="redzone sum" color={T.accentSoft} />
+            <Stat label="WORKOUTS" value={`${redzone.workouts}/${redzone.workoutDenom}`} sub="days logged" color={T.accentSoft} />
+          </StatRow>
+
+          <Divider label="INFORMATIONAL \u2014 NOT SCORED" />
+          <StatRow>
+            <Stat label="SODIUM" value={fmtDelta(redzone.sodiumDiff, "mg")} sub="avg/day vs target" bad={redzone.sodiumDiff > 0} />
+            <Stat label="FAT" value={fmtDelta(redzone.fatDiff, "g")} sub="avg/day vs target" bad={redzone.fatDiff > 0} />
+            <Stat label="CARBS" value={fmtDelta(redzone.carbDiff, "g")} sub="avg/day vs target" bad={redzone.carbDiff > 0} />
+          </StatRow>
+
+          <Divider label="DRINKING" />
+          <StatRow>
+            <Stat label="DRINK CAL" value={`${redzone.avgDrinkingCal.toLocaleString()}/day`} sub="redzone avg" bad={redzone.avgDrinkingCal > 150} />
+            <Stat label="STD DRINKS" value={redzone.totalDrinks.toFixed(1)} sub="redzone sum" bad={redzone.totalDrinks > redzoneDays.length * 2} />
+            <Stat label="BINGE DAYS" value={`${redzone.bingeDays}/${redzone.bingeDenom}`} sub="days logged" bad={redzone.bingeDays > 0} />
+          </StatRow>
+        </SummaryCard>
+
         <SectionTitle>ALL-TIME</SectionTitle>
         <SummaryCard>
           <BigStat label="ALL-TIME AVERAGE SCORE" value={allDays.length ? allTime.avgScore.toFixed(1) : "\u2014"} color={scoreColor(allTime.avgScore)} />
